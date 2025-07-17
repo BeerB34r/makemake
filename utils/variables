@@ -1,0 +1,9 @@
+#!/bin/env bash
+
+if [ -z ${makemake_theme} ]; then
+	. themes/dune.sh
+else
+	. themes/${makemake_theme}
+fi
+
+makefile=${makefile:="makefile"}
