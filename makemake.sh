@@ -1,4 +1,4 @@
-#!/bin/env bash
+#!/usr/bin/env bash
 
 #
 # For those reading through the script, good on you for not trusting some random
@@ -24,85 +24,49 @@
 # instead of the standard dune related tidbits
 # dune and doom are currently the only ones i can think of funny things for :P
 
-if [ -e ${HOME}/.makemakerc ]; then
-	. ${HOME}/.makemakerc
-fi
+fatal(){
+	echo "[FATAL] $@"
+	exit 1
+}
 
-. utils/variables
-. utils/functions
+main() {
+	# declare functions to be local so they do not bleed into the outer scope
+	local -f _swhich ensure_directories
+	local -f default_targetbin default_bindir default_depdir default_libdir
+	local -f get_targetbin get_language get_bindir get_depdir get_libdir get_srcdirs get_incdirs
+	local -f update_savefile update_srcfiles update_makefile
+	# naming/theming
+	local makemake_theme makefile prelude savefile maker_header
+	# non-cosmetic variables always used by makemake
+	local targetbin language flags bindir depdir has_libs libdir change standard c_standard cpp_standard
+	local -a directories srcdirs srcfiles incdirs
+	# utility
 
-echo -n "${prelude}"
-
-# check if this is the initial run of makemake
-if [ -e ${savefile} ]; then
-	. ${savefile}
-else
-	echo "what is the name of the target binary? (default: \"`default_targetbin`\")"
-	read targetbin
-	targetbin=${targetbin:=`default_targetbin`}
-	echo "target binary shall be named ${targetbin}"
-	echo "
-will this project be using C or CPP?"
-	select lang in c cpp
-	do
-		case ${lang} in 
-			"c")
-				language=c
-				flags="-Wall -Wextra -Werror"
-				echo "C chosen"
-				break
-				;;
-			"cpp")
-				language=cpp
-				echo "CPP chosen"
-				echo "are you required to (or wanting to) use the c++98 standard? (y/n)"
-				read standard
-				if [ ${standard} = "y" -o -z ${standard} ]; then
-					echo "c++98 standard enforced on current project"
-					flags="-Wall -Wextra -Werror --std=c++98"
-				else
-					flags="-Wall -Wextra -Werror"
-				fi
-				break
-				;;
-		esac
-	done
-	echo "
-what directory should intermediary binary files be stored? (default: \"`default_bindir`\")"
-	read bindir
-	bindir=${bindir:=`default_bindir`}
-	echo "intermediary binaries stored in: ${bindir}"
-	echo "
-what directory should generated dependency files be stored (default: \"`default_depdir`\")"
-	read depdir
-	depdir=${depdir:=`default_depdir`}
-	echo "dependency files stored in: ${depdir}"
-	echo "
-will this project be using local libraries, such as minilibx? (y/n)"
-	read reply
-	if [ "${reply}" = "y" -o -z ${reply} ]; then
-		echo "in what directory are the libraries stored? (default: \"`default_libdir`\")"
-		read libdir
-		libdir=${libdir:=`default_libdir`}
-		echo "libraries stored in: ${libdir}"
-		echo "NOTE: this makefile generator assumes that each library has its own directory, and outputs an archive file corresponding to its directory name, i.e: ./lib/libfoo => ./lib/libfoo/libfoo.a"
-		echo "if this is not the case for your project, you must manually change this yourself"
+	if [ -e ${HOME}/.makemakerc ]; then
+		. ${HOME}/.makemakerc
 	fi
-	echo "targetbin=\"${targetbin}\"" > ${savefile}
-	echo "language=${language}" >> ${savefile}
-	echo "flags=\"${flags}\"" >> ${savefile}
-	echo "bindir=\"${bindir}\"" >> ${savefile}
-	echo "depdir=\"${depdir}\"" >> ${savefile}
-	if [ ! -z ${libdir} ]; then
-		echo "libdir=\"${libdir}\"" >> ${savefile}
-	fi
-fi
 
-ensure_directories
+	. utils/variables || fatal "failed to source variables"
+	. utils/functions || fatal "failed to source functions"
 
-# ask for user input on everything not provided by previous runs
-if [ -z ${srcdirs} ]; then get_srcdirs; fi
-if [ -z ${incdirs} ]; then get_incdirs; fi
+	echo -n "${prelude}"
 
-update_srcfiles
-update_makefile
+	change="false"
+	if [ -e ${savefile} ]; then change="true" . "${savefile}"; fi
+	if [ -z ${targetbin} ]; then change="true" get_targetbin && echo ""; fi
+	if [ -z ${language} ]; then change="true" get_language && echo ""; fi
+	if [ -z ${bindir} ]; then change="true" get_bindir && echo ""; fi
+	if [ -z ${depdir} ]; then change="true" get_depdir && echo ""; fi
+	if [[ -z ${has_libs} || ( ${has_libs} = "true" && -z ${libdir} ) ]]; then change="true" get_libdir && echo ""; fi
+	if [ ${change} = "true" ]; then update_savefile; fi
+
+	# ask for user input on everything not provided by previous runs
+	if [ -z ${srcdirs} ]; then change="true" get_srcdirs && echo ""; fi
+	if [ -z ${incdirs} ]; then change="true" get_incdirs && echo ""; fi
+	if [ ${change} = "true" ]; then update_savefile; fi
+
+	update_srcfiles
+	if [ ${change} = "true" ]; then update_makefile; fi
+}
+
+main $@

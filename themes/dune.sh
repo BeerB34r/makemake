@@ -1,4 +1,4 @@
-#!/bin/env bash
+#!/usr/bin/env bash
 
 #
 # splitting projects into several files is a thing you should do
@@ -9,6 +9,7 @@ prelude=${prelude:="Bless the Maker and His water.
 Bless the coming and going of Him.
 May His passage cleanse the world.
 May He keep the world for His people.
+
 "}
 savefile=${savefile:="sand.trout"}
 maker_header=${maker_header:="#--------------------------------------------------------------------------------#

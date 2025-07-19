@@ -1,4 +1,4 @@
-#!/bin/env bash
+#!/usr/bin/env bash
 
 _swhich() {
 	which $1 2>/dev/null >/dev/null
@@ -28,6 +28,97 @@ if ! _swhich default_libdir; then
 	}
 fi
 
+get_targetbin(){
+	echo "what is the name of the target binary? (default: \"`default_targetbin`\")"
+	read targetbin
+	targetbin="${targetbin:=`default_targetbin`}"
+	echo "target binary shall be named ${targetbin}"
+	echo "targetbin=\"${targetbin}\"" >> ${savefile}
+}
+
+get_language(){
+	local -a language_options=(c cpp)
+	local lang
+	echo "will this project be using C or CPP?"
+	select lang in ${language_options[@]}
+	do
+		case ${lang} in 
+			"c")
+				language="c"
+				flags=${flags:="-Wall -Wextra -Werror"}
+				echo "C chosen"
+				if [[ ${standard} = "y" && ! -z ${c_standard} ]]; then
+					flags+=" ${c_standard}"
+				fi
+				break
+				;;
+			"cpp")
+				language="cpp"
+				flags=${flags:="-Wall -Wextra -Werror"}
+				echo "CPP chosen"
+				if [ -z ${standard} ]; then 
+					echo "are you required to (or wanting to) use a standard? (default:\"${cpp_standard:="--std=c++98"}\") (y/n)"
+					read standard
+				fi
+				if [ ${standard} = "y" -o -z ${standard} ]; then
+					echo "${cpp_standard##*$'='} standard enforced on current project"
+					flags+=" ${cpp_standard}"
+				fi
+				break
+				;;
+		esac
+	done
+	echo "language=\"${language}\"" >> ${savefile}
+	echo "flags=\"${flags}\"" >> ${savefile}
+}
+
+get_bindir(){
+	echo "what directory should intermediary binary files be stored? (default: \"`default_bindir`\")"
+	read bindir
+	bindir=${bindir:=`default_bindir`}
+	echo "intermediary binaries stored in: ${bindir}"
+	echo "bindir=\"${bindir}\"" >> ${savefile}
+}
+
+get_depdir(){
+	echo "what directory should generated dependency files be stored (default: \"`default_depdir`\")"
+	read depdir
+	depdir=${depdir:=`default_depdir`}
+	echo "dependency files stored in: ${depdir}"
+	echo "depdir=\"${depdir}\"" >> ${savefile}
+}
+
+get_libdir(){
+	local reply
+	if [ -z ${has_libs} ]; then
+		has_libs="false"
+		echo "will this project be using local libraries, such as minilibx? (y/n)"
+		read reply
+	fi
+	if [ ${has_libs} = "true" -o "${reply}" = "y" -o -z ${reply} ]; then
+		has_libs="true"
+		echo "in what directory are the libraries stored? (default: \"`default_libdir`\")"
+		read libdir
+		libdir=${libdir:=`default_libdir`}
+		echo "libraries stored in: ${libdir}"
+		echo "NOTE: this makefile generator assumes that each library has its own directory, and outputs an archive file corresponding to its directory name, i.e: ./lib/libfoo => ./lib/libfoo/libfoo.a"
+		echo "if this is not the case for your project, you must manually change this yourself"
+	fi
+	echo "has_libs=\"${has_libs}\"" >> ${savefile}
+	echo "libdir=\"${libdir}\"" >> ${savefile}
+}
+
+update_savefile(){
+	rm -f ${savefile}
+	if [ ! -z "${targetbin}" ]; then echo "targetbin=\"${targetbin}\"" >> ${savefile}; fi
+	if [ ! -z "${language}" ]; then echo "language=\"${language}\"" >> ${savefile}; fi
+	if [ ! -z "${flags}" ]; then echo "flags=\"${flags}\"" >> ${savefile}; fi
+	if [ ! -z "${bindir}" ]; then echo "bindir=\"${bindir}\"" >> ${savefile}; fi
+	if [ ! -z "${depdir}" ]; then echo "depdir=\"${depdir}\"" >> ${savefile}; fi
+	if [ ! -z "${has_libs}" ]; then echo "has_libs=\"${has_libs}\"" >> ${savefile}; fi
+	if [ ! -z "${libdir}" ]; then echo "libdir=\"${libdir}\"" >> ${savefile}; fi
+}
+
 ensure_directories(){
 	if [ -z ${directories} ]; then
 		directories=("quit" `find . -type d -not -path '*/.*' -printf "%P/\n"`)
@@ -36,58 +127,58 @@ ensure_directories(){
 }
 
 get_srcdirs() {
+	ensure_directories
 	local PS3="Please select a number: "
-	echo "
-which of the following directories contain your source files? if source files are in nested directories, please submit all relevant directories"
+	local REPLY option reply
+	echo "which of the following directories contain your source files? if source files are in nested directories, please submit all relevant directories"
 	select option in "${directories[@]}"
 	do
 		if [ -z ${REPLY} -o ${REPLY} = "q" -o ${REPLY} = "quit" ]; then option="quit"; fi;
-		case ${option} in
-			"quit")
-				echo "you have selected ${srcdirs[@]}"
-				echo "is this correct? (y/n)"
-				read reply
-				if [ "${reply}" = "y" -o -z ${reply} ]; then
-					break
-				fi
-				echo "selection canceled"
-				exit 1
-				;;
-			*)
-				echo "appended ${option} to source directories"
-				srcdirs=(${srcdirs[@]} ${option})
-				;;
-		esac
-	done
-	echo "srcdirs=(`echo ${srcdirs[@]} | sed -E 's/$/"/; s/^/"/; s/ /" "/'`)" >> ${savefile}
-}
+			case ${option} in
+				"quit")
+					echo "you have selected ${srcdirs[@]}"
+					echo "is this correct? (y/n)"
+					read reply
+					if [ "${reply}" = "y" -o -z ${reply} ]; then
+						break
+					fi
+					fatal "selection cancelled"
+					;;
+				*)
+					echo "appended ${option} to source directories"
+					srcdirs=(${srcdirs[@]} ${option})
+					;;
+			esac
+		done
+		echo "srcdirs=(`echo ${srcdirs[@]} | sed -E 's/$/"/; s/^/"/; s/ /" "/'`)" >> ${savefile}
+	}
 
 get_incdirs() {
+	ensure_directories
 	local PS3="Please select a number: "
-	echo "
-which of the following directories contain your header files? if header files are in nested directories, please submit all relevant directories"
+	local REPLY option reply
+	echo "which of the following directories contain your header files? if header files are in nested directories, please submit all relevant directories"
 	select option in "${directories[@]}"
 	do
 		if [ -z ${REPLY} -o ${REPLY} = "q" -o ${REPLY} = "quit" ]; then option="quit"; fi;
-		case ${option} in
-			"quit")
-				echo "you have selected ${incdirs[@]}"
-				echo "is this correct? (y/n)"
-				read reply
-				if [ "${reply}" = "y" -o -z ${reply} ]; then
-					break
-				fi
-				echo "selection canceled"
-				exit 1
-				;;
-			*)
-				echo "appended ${option} to header directories"
-				incdirs=(${incdirs[@]} ${option})
-				;;
-		esac
-	done
-	echo "incdirs=(`echo ${incdirs[@]} | sed -E 's/$/"/; s/^/"/; s/ /" "/'`)" >> ${savefile}
-}
+			case ${option} in
+				"quit")
+					echo "you have selected ${incdirs[@]}"
+					echo "is this correct? (y/n)"
+					read reply
+					if [ "${reply}" = "y" -o -z ${reply} ]; then
+						break
+					fi
+					fatal "selection cancelled"
+					;;
+				*)
+					echo "appended ${option} to header directories"
+					incdirs=(${incdirs[@]} ${option})
+					;;
+			esac
+		done
+		echo "incdirs=(`echo ${incdirs[@]} | sed -E 's/$/"/; s/^/"/; s/ /" "/'`)" >> ${savefile}
+	}
 
 update_srcfiles(){
 	local new_srcfiles=`find ${srcdirs[*]} -maxdepth 1 -type f -name "*.${language}" -printf "%f " | sed -E 's/ $//g'`
@@ -96,7 +187,7 @@ update_srcfiles(){
 		echo "srcfiles=\"${new_srcfiles}\"" >> ${savefile}
 		echo "srcfiles changed to: ${new_srcfiles}"
 		srcfiles="${new_srcfiles}"
-		update_makefile
+		sed -i'' 's/SRC =.*/SRC = '"${srcfiles}"'/' ${makefile}
 	else
 		echo "no change to srcfiles"
 	fi
@@ -106,14 +197,17 @@ update_makefile() {
 	if [ -e "${makefile}" ]; then
 		mv ${makefile} ${makefile}.bk
 	fi
-	echo "${maker_header}
+	if [ ! -z "${maker_header}" ]; then
+		echo "${maker_header}
+" >> ${makefile}
+	fi
 
-SRC = ${srcfiles}
+echo "SRC = ${srcfiles}
 SRCDIR = ${srcdirs[@]}"'
 
 BIN = $(addprefix $(BINDIR),$(SRC:%.c=%.o))'"
 BINDIR = ${bindir}
-" > ${makefile}
+" >> ${makefile}
 	if [ ! -z ${libdir} ]; then 
 		echo "LIBDIR = ${libdir}
 LIBRARIES = `find ${libdir} -mindepth 1 -type d -printf "%P/%P.a "`"'
@@ -144,8 +238,8 @@ VPATH = $(SRCDIR)
 include $(addprefix $(DEPDIR), $(SRC:%.c=%.d))
 
 define libscmd
-for dir in $(dir $(LIB)); do \
-	$(MAKE) -C $$dir $(1); done ;
+	for dir in $(dir $(LIB)); do \
+		$(MAKE) -C $$dir $(1); done ;
 endef
 
 $(LIB) :
