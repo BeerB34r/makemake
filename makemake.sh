@@ -42,10 +42,11 @@ main() {
 	local targetbin language flags bindir depdir has_libs libdir change standard c_standard cpp_standard
 	local -a directories srcdirs srcfiles incdirs
 	# find utils
-	local makemake variables functions
+	local makemake variables functions themes
 	makemake="$1"
 	variables="${makemake%/*}/utils/variables"
 	functions="${makemake%/*}/utils/functions"
+	themes="${makemake%/*}/themes/"
 
 	if [ -e ${HOME}/.makemakerc ]; then
 		. ${HOME}/.makemakerc

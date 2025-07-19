@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 if [ -z ${makemake_theme} ]; then
-	. themes/dune
+	. ${themes}dune
 else
-	. themes/${makemake_theme}
+	. ${themes}${makemake_theme}
 fi
 
 makefile=${makefile:="makefile"}
