@@ -24,3 +24,5 @@ main(){
 		wget "${THEMES_URL}${theme}" --show-progress -q -O themes/${theme} || fatal "failed to download themes/${theme}"
 	done
 }
+
+main $@
