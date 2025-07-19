@@ -71,6 +71,6 @@ main() {
 	if [ ${change} = "true" ]; then update_savefile; fi
 
 	update_srcfiles
-	if [ ${change} = "true" ]; then update_makefile; fi
+	if [ ! -e "${makefile}" -o ${change} = "true" ]; then update_makefile; fi
 }
 main "$(realpath `which $0`)" $@
