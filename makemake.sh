@@ -2,28 +2,38 @@
 
 #
 # For those reading through the script, good on you for not trusting some random
-# script you found on the internet. I would like to formally apologize for the
-# state you will find this script in, as it is currently quite unpolished. i
-# will hopefully remedy this eventually, but until that moment comes you will
-# just have to deal with it.
-# eventually i'd like for this script, if read in its entirety, to teach you how
-# and why certain decisions were made for this scripts generated makefiles.
-# until then, i urge you to examine and interrogate the script and makefile
-# for as long as you have questions remaining.
+# script you found on the internet.
+# The script should be fairly easy to understand, and i've tried to comment
+# where things can become a bit unclear if you've not read that many bash
+# scripts.
+# The generated makefiles themselves are almost entirely uncommented, and i aim
+# to make them a bit more educational in a bit. for now i think its fine, as i'd
+# rather first make it fully capable of creating a makefile for most of the
+# projects in the core curriculum
 #
 # - the goblin in Codam's walls
 
 
 #
 # PLANNED
-# .makerc => standardise the project creation process for those who dont want to
-# sit through the questionnaire every time => currently working (to a certain
-# extent)
+#
+# archive support => create specific functionality for if the target binary is
+# an archive and not an executable
+#
+# Library extensions => create specific functionality for a subset of commonly
+# used 42 school libraries, such as minilibx and MLX42
 #
 # themes => different themes for different command names, i.e: should you name
 # the makemake script "khan maykr" it will spit doom related tidbits at you
 # instead of the standard dune related tidbits
 # dune and doom are currently the only ones i can think of funny things for :P
+#
+# There is currently no plan for supporting projects with multiple target
+# binaries (e.g. minitalk).
+# There is currently no plan for supporting splitting projects based on
+# mandatory and bonus parts.
+# Both previous scenarios are trivial to create makefiles for however, just make
+# them yourself.
 
 fatal(){
 	echo "[FATAL] $@"
@@ -52,8 +62,8 @@ main() {
 		. ${HOME}/.makemakerc
 	fi
 
-	. "${variables}" || fatal "failed to source variables"
-	. "${functions}" || fatal "failed to source functions"
+	. "${variables}" || fatal "failed to source variables" # get various variables that have to do with theming mostly
+	. "${functions}" || fatal "failed to source functions" # get our functions. most of them are defined in a separate file such that the definitions are not made available to the shell calling makemake
 
 	echo -n "${prelude}"
 
@@ -64,9 +74,6 @@ main() {
 	if [ -z ${bindir} ]; then change="true" get_bindir && echo ""; fi
 	if [ -z ${depdir} ]; then change="true" get_depdir && echo ""; fi
 	if [[ -z ${has_libs} || ( ${has_libs} = "true" && -z ${libdir} ) ]]; then change="true" get_libdir && echo ""; fi
-	if [ ${change} = "true" ]; then update_savefile; fi
-
-	# ask for user input on everything not provided by previous runs
 	if [ -z ${srcdirs} ]; then change="true" get_srcdirs && echo ""; fi
 	if [ -z ${incdirs} ]; then change="true" get_incdirs && echo ""; fi
 	if [ ${change} = "true" ]; then update_savefile; fi
