@@ -17,7 +17,8 @@
 #
 # PLANNED
 # .makerc => standardise the project creation process for those who dont want to
-# sit through the questionnaire every time
+# sit through the questionnaire every time => currently working (to a certain
+# extent)
 #
 # themes => different themes for different command names, i.e: should you name
 # the makemake script "khan maykr" it will spit doom related tidbits at you
@@ -40,14 +41,18 @@ main() {
 	# non-cosmetic variables always used by makemake
 	local targetbin language flags bindir depdir has_libs libdir change standard c_standard cpp_standard
 	local -a directories srcdirs srcfiles incdirs
-	# utility
+	# find utils
+	local makemake variables functions
+	makemake="$1"
+	variables="${makemake%/*}/utils/variables"
+	functions="${makemake%/*}/utils/functions"
 
 	if [ -e ${HOME}/.makemakerc ]; then
 		. ${HOME}/.makemakerc
 	fi
 
-	. utils/variables || fatal "failed to source variables"
-	. utils/functions || fatal "failed to source functions"
+	. "${variables}" || fatal "failed to source variables"
+	. "${functions}" || fatal "failed to source functions"
 
 	echo -n "${prelude}"
 
@@ -68,5 +73,4 @@ main() {
 	update_srcfiles
 	if [ ${change} = "true" ]; then update_makefile; fi
 }
-
-main $@
+main "$(realpath `which $0`)" $@
