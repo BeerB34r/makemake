@@ -33,7 +33,17 @@ get_targetbin(){
 	read targetbin
 	targetbin="${targetbin:=`default_targetbin`}"
 	echo "target binary shall be named ${targetbin}"
+	if [[ ${targetbin} == *.a ]]; then
+		echo "target binary is an archive file, changing default rule"
+		echo "$(ARFLAGS) = rsv"
+		arflags=rsv
+		echo "arflags=\"${arflags}\"" >> ${savefile}
+		default_rule=library
+	else
+		default_rule=executable
+	fi
 	echo "targetbin=\"${targetbin}\"" >> ${savefile}
+	echo "default_rule=\"${default_rule}\"" >> ${savefile}
 }
 
 get_language(){
@@ -97,6 +107,9 @@ get_libdir(){
 	fi
 	if [ ${has_libs} = "true" -o "${reply}" = "y" -o -z ${reply} ]; then
 		has_libs="true"
+		if [ ${default_rule} = "library" ]; then
+			echo "NOTE: this makefile generator assumes that an archive dependent on another archive does not want the files it is dependent on inserted into the output binary. i.e: if target.a is dependent on foo.a, target.a will contain none of the files within foo.a, nor will it contian foo.a"
+		fi
 		echo "in what directory are the libraries stored? (default: \"`default_libdir`\")"
 		read libdir
 		libdir=${libdir:=`default_libdir`}
@@ -111,6 +124,8 @@ get_libdir(){
 update_savefile(){
 	rm -f ${savefile}
 	if [ ! -z "${targetbin}" ]; then echo "targetbin=\"${targetbin}\"" >> ${savefile}; fi
+	if [ ! -z "${default_rule}" ]; then echo "default_rule=\"${default_rule}\"" >> ${savefile}; fi
+	if [ ! -z "${arflags}" ]; then echo "arflags=\"${arflags}\"" >> ${savefile}; fi
 	if [ ! -z "${language}" ]; then echo "language=\"${language}\"" >> ${savefile}; fi
 	if [ ! -z "${flags}" ]; then echo "flags=\"${flags}\"" >> ${savefile}; fi
 	if [ ! -z "${bindir}" ]; then echo "bindir=\"${bindir}\"" >> ${savefile}; fi
@@ -187,7 +202,9 @@ update_srcfiles(){
 		echo "srcfiles=\"${new_srcfiles}\"" >> ${savefile}
 		echo "srcfiles changed to: ${new_srcfiles}"
 		srcfiles="${new_srcfiles}"
-		sed -i'' 's/SRC =.*/SRC = '"${srcfiles}"'/' ${makefile}
+		if [ ! -e ${makefile} ]; then update_makefile; else
+			sed -i'' 's/SRC =.*/SRC = '"${srcfiles}"'/' ${makefile}
+		fi
 	else
 		echo "no change to srcfiles"
 	fi
@@ -220,6 +237,10 @@ INC = $(addprefix -I,$(INCDIR) .)'"
 DEPDIR = ${depdir}"'
 DEPFLAGS = -MM -MF $@ -MT $@ -MT $(BINDIR)$(addsuffix .o,$(notdir $(basename $<)))
 ' >> ${makefile}
+	if [ ${default_rule} = "library" ]; then
+		echo "AR = ar
+ARFLAGS = ${arflags}
+" >> ${makefile}
 	if [ ${language} = "c" ]; then
 		echo "CC = cc
 CFLAGS = ${flags}"' $(INC)
@@ -278,7 +299,9 @@ run : $(NAME); ./$(NAME)' >> ${makefile}
 
 # bread and butter
 $(NAME) : $(BIN) $(LIB)' >> ${makefile}
-	if [ ${language} = "c" ]; then
+	if [ ${default_rule} = "library" ]; then
+		echo '	$(AR) $(ARFLAGS) -o $@ $(BIN)' >> ${makefile}
+	elif [ ${language} = "c" ]; then
 		echo '	$(CC) $(CFLAGS) $(INC) -o $@ $^' >> ${makefile}
 	else
 		echo '	$(CXX) $(CXXFLAGS) $(INC) -o $@ $^' >> ${makefile}

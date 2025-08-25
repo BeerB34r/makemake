@@ -18,7 +18,7 @@
 # PLANNED
 #
 # archive support => create specific functionality for if the target binary is
-# an archive and not an executable
+# an archive and not an executable => UPDATE Should now work as intended
 #
 # Library extensions => create specific functionality for a subset of commonly
 # used 42 school libraries, such as minilibx and MLX42
@@ -49,7 +49,7 @@ main() {
 	# naming/theming
 	local makemake_theme makefile prelude savefile maker_header
 	# non-cosmetic variables always used by makemake
-	local targetbin language flags bindir depdir has_libs libdir change standard c_standard cpp_standard
+	local targetbin language flags bindir depdir has_libs libdir change standard c_standard cpp_standard default_rule arflags
 	local -a directories srcdirs srcfiles incdirs
 	# find utils
 	local makemake variables functions themes
